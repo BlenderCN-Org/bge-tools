@@ -1,4 +1,4 @@
-# Raco's BGE Tools: UV Scroll v0.1.0
+# Raco's BGE Tools: UV Scroll v0.0.1
 
 from bge import logic
 from mathutils import Vector, Matrix
@@ -7,18 +7,27 @@ class UVScroll:
 	
 	def __init__(self, cont):
 		
-		# store the owner, mesh, material id, frequency
+		# get references to the owner, mesh and material id
 		# get sprite size and Vector coordinates from string property "sprites"
 		# convert string property "sequence" to an array of valid id's
 		# get data from string properties "spin", "loop" and "pingpong"
 		# initialize direction, id and offset
+		
+		PROP_NAME_SPRITES = "sprites"
+		PROP_NAME_SEQUENCE = "sequence"
+		PROP_NAME_LOOP = "loop"
+		PROP_NAME_PINGPONG = "pingpong"
+		PROP_NAME_LINKED = "linked"
+		
+		ERR_MSG_ILLEGAL_VALUE = "UV Scroll Sequence contains illegal value:\t"
+		ERR_MSG_OUT_OF_RANGE = "UV Scroll Sequence is out of range:\t"
 		
 		def get_mesh(self):
 			mesh = self.own.meshes[0]
 			try:
 				base_obj = self.own.scene.objectsInactive[self.own.name]
 			except KeyError:
-				if not self.own["unlink"]:
+				if self.own[PROP_NAME_LINKED]:
 					return mesh
 			if not hasattr(logic, "libnews"):
 				logic.libnews = 0
@@ -40,7 +49,7 @@ class UVScroll:
 			return -1
 			
 		def get_sprite_data(self):
-			sprites = [int(i) for i in self.own["sprites"].split(", ")]
+			sprites = [int(i) for i in self.own[PROP_NAME_SPRITES].split(", ")]
 			sprite_size = Vector([1 / sprites[i] for i in range(2)]).to_3d()
 			sprite_coords = []
 			for y in range(sprites[1]):
@@ -67,9 +76,9 @@ class UVScroll:
 				if "-" in s:
 					ds = digits_in_range(s.split("-"), num_sprites)
 					if "ValueError" in ds:
-						self.errors.append(self.err_value + s)
+						self.errors.append(ERR_MSG_ILLEGAL_VALUE + s)
 					elif "IndexError" in ds:
-						self.errors.append(self.err_index + s)
+						self.errors.append(ERR_MSG_OUT_OF_RANGE + s)
 					else:
 						first, last = ds
 						dir = -1 if first > last else 1
@@ -78,9 +87,9 @@ class UVScroll:
 				elif "*" in s:
 					ds = digits_in_range(s.split("*"), num_sprites)
 					if "ValueError" in ds:
-						self.errors.append(self.err_value + s)
+						self.errors.append(ERR_MSG_ILLEGAL_VALUE + s)
 					elif "IndexError" in ds:
-						self.errors.append(self.err_index + s)
+						self.errors.append(ERR_MSG_OUT_OF_RANGE + s)
 					else:
 						id, num = ds
 						for i in range(num):
@@ -88,23 +97,21 @@ class UVScroll:
 				else:
 					d = digit_in_range(s, num_sprites)
 					if d == "ValueError":
-						self.errors.append(self.err_value + s)
+						self.errors.append(ERR_MSG_ILLEGAL_VALUE + s)
 					elif d == "IndexError":
-						self.errors.append(self.err_index + s)
+						self.errors.append(ERR_MSG_OUT_OF_RANGE + s)
 					else:
 						sequence.append(d)
 						
 			return sequence
 			
 		def get_properties(self):
-			sequence = get_sequence(self.own["sequence"])
-			loop = self.own["loop"]
-			pingpong = self.own["pingpong"]
+			sequence = get_sequence(self.own[PROP_NAME_SEQUENCE])
+			loop = self.own[PROP_NAME_LOOP]
+			pingpong = self.own[PROP_NAME_PINGPONG]
 			return sequence, loop, pingpong
 		
 		self.own = cont.owner
-		self.err_value = "UV Scroll Sequence contains illegal value:\t"
-		self.err_index = "UV Scroll Sequence index is out of range:\t"
 		self.errors = []
 		self.sprite_coords, self.sprite_size = get_sprite_data(self)
 		self.sequence, self.loop, self.pingpong = get_properties(self)
@@ -119,7 +126,6 @@ class UVScroll:
 		self.mesh = get_mesh(self)
 		self.mat_id = get_mat_id(self.mesh)
 		self.always = cont.sensors[0]
-		self.freq = self.always.skippedTicks
 		self.num_sequence = len(self.sequence)
 		self.extremes = [0, self.num_sequence - 1]
 		self.direction = 1
