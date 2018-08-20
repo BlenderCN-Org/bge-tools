@@ -124,25 +124,29 @@ def remove_logic_python(ob, brick_name):
 		if actu.name == brick_name:
 			bpy.ops.logic.controller_remove(actuator=brick_name, object=ob.name)
 			
-def copy(sc, ob, link=True, suffix="", apply_modifiers=False, modifier_settings="RENDER"):
-	me_copy = ob.to_mesh(sc, apply_modifiers, modifier_settings)
-	me_copy.name = ob.data.name + suffix
-	ob_copy = bpy.data.objects.new(ob.name + suffix, me_copy)
-	ob_copy.matrix_world = ob.matrix_world
+def copy(sc, ob, link=False, suffix="", apply_modifiers=False, modifier_settings="RENDER"):
 	if link:
-		sc.objects.link(ob_copy)
+		ob_copy = bpy.data.objects.new(ob.name + suffix, ob.data)
+	else:
+		me_copy = ob.to_mesh(sc, apply_modifiers, modifier_settings)
+		me_copy.name = ob.data.name + suffix
+		ob_copy = bpy.data.objects.new(ob.name + suffix, me_copy)
+	ob_copy.matrix_world = ob.matrix_world
+	sc.objects.link(ob_copy)
 	return ob_copy
 	
 def remove(o, remove_mesh=True):
-	if isinstance(o, bpy.types.Mesh):
-		bpy.data.meshes.remove(o, do_unlink=True)
+	if isinstance(o, bpy.types.Material):
+		bpy.data.materials.remove(o)
+	elif isinstance(o, bpy.types.Mesh):
+		bpy.data.meshes.remove(o)
 	elif isinstance(o, bpy.types.Object):
 		if remove_mesh:
 			me = o.data
-			bpy.data.objects.remove(o, do_unlink=True)
-			bpy.data.meshes.remove(me, do_unlink=True)
+			bpy.data.objects.remove(o)
+			bpy.data.meshes.remove(me)
 		else:
-			bpy.data.objects.remove(o, do_unlink=True)
+			bpy.data.objects.remove(o)
 	else:
 		del o
 		

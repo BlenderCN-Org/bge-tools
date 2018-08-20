@@ -7,17 +7,19 @@ ERR_MSG_WRONG_OBJECT = "Selected object not suited for this application"
 ERR_MSG_WRONG_LAYER = "Selected object not in active layer"
 ERR_MSG_NO_OBJECT_SELECTED = "No object selected"
 ERR_MSG_NO_ACTIVE_OBJECT_SELECTED = "No active object selected"
+ERR_MSG_OBJECT_NOT_FOUND = "Object not found"
 
-PARTICLES = "_PARTICLES"
-VERTEX_GROUP = "_BOUNDS"
-TEMP_SUFFIX = "_TEMP"
-BASE_SUFFIX = "_BASE"
-SECT_SUFFIX = "_SECT"
-LOD_SUFFIX = "_LOD"
-PHYSICS_SUFFIX = "_PHYSICS"
-NUMB_SUFFIX = ".000"
-PROP_NAME = "BGE_TOOLS_LOD_SECTIONS"
-SCRIPT_NAME = PROP_NAME.lower()
+PREF = "_"
+PART = "_PART"
+TEMP = "_TEMP"
+BASE = "_BASE"
+SECT = "_SECT"
+LOD = "_LOD"
+PHYS = "_PHYS"
+NUMB = ".000"
+BOUNDS = "_BOUNDS"
+PROP = "BGE_TOOLS_LOD_SECTIONS"
+SCRIPT = "bge_tools_lod_sections"
 
 class LODSections(bpy.types.Operator):
 	
@@ -26,19 +28,123 @@ class LODSections(bpy.types.Operator):
 	bl_label = "BGE-Tools: LOD Sections"
 	bl_options = {"REGISTER", "UNDO", "PRESET"}
 	
-	prop_update_or_clear = bpy.props.EnumProperty(items=[("update", "Update", ""), ("clear", "Clear", "")], name="", default="update")
-	prop_number_or_size = bpy.props.EnumProperty(items=[("generate_by_number", "Number", ""), ("generate_by_size", "Size", "")], name="Generate by", default="generate_by_number")
-	prop_number = bpy.props.IntVectorProperty(name="", description="Number of sections", min=1, soft_max=128, default=(8, 8), size=2)
-	prop_size = bpy.props.FloatVectorProperty(name="", description="Section size", min=1, soft_max=128, default=(8, 8), size=2)
-	prop_number_mode = bpy.props.EnumProperty(items=[("use_automatic_numbering", "Use Automatic Numbering", ""), ("use_even_numbers", "Use Even Numbers", ""), ("use_odd_numbers", "Use Odd Numbers", "")], name="", default="use_even_numbers")
-	prop_decimate_dissolve = bpy.props.BoolProperty(name="Decimate Dissolve", default=True)
-	prop_decimate_dissolve_angle_limit = bpy.props.FloatProperty(name="", min=0, max=math.pi, default=math.radians(1), subtype="ANGLE")
-	prop_lod = bpy.props.BoolProperty(name="Level of detail", default=True)
-	prop_lod_number = bpy.props.IntProperty(name="", min=1, max=8, default=4)
-	prop_lod_factor = bpy.props.FloatProperty(name="", min=0, max=1, default=0.25, subtype="FACTOR")
-	prop_gen_options = bpy.props.EnumProperty(items=[("generate_sections", "Generate Sections", ""), ("generate_sections_and_save_json_file", "Generate Sections and Save Json File", "")], name="", default="generate_sections_and_save_json_file")
-	prop_approx = bpy.props.BoolProperty(name="Approximate", default=True)
-	prop_approx_num_digits = bpy.props.IntProperty(name="", min=0, max=15, default=2)
+	prop_update_or_clear = bpy.props.EnumProperty(
+		items=[
+			("update", "Update", ""),
+			("clear", "Clear", "")
+		],
+		name="",
+		description="Update or clear",
+		default="clear"
+	)
+	prop_number_or_size = bpy.props.EnumProperty(
+		items=[
+			("generate_by_number", "Generate by number", ""),
+			("generate_by_size", "Generate by size", "")
+		],
+		name="",
+		description="Generate by number or size",
+		default="generate_by_number"
+	)
+	prop_number = bpy.props.IntVectorProperty(
+		name="",
+		description="Number of sections",
+		default=(8, 8),
+		min=1,
+		max=64,
+		size=2
+	)
+	prop_size = bpy.props.FloatVectorProperty(
+		name="",
+		description="Section size",
+		default=(64, 64),
+		soft_min=8,
+		soft_max=512,
+		size=2
+	)
+	prop_number_mode = bpy.props.EnumProperty(
+		items=[
+			("use_automatic_numbering", "Use Automatic Numbering", ""),
+			("use_even_numbers", "Use Even Numbers", ""),
+			("use_odd_numbers", "Use Odd Numbers", "")
+		],
+		name="",
+		description="Mode for numbering",
+		default="use_even_numbers"
+	)
+	prop_use_decimate_dissolve = bpy.props.BoolProperty(
+		name="Decimate Dissolve",
+		description="Apply planar decimation",
+		default=False
+	)
+	prop_decimate_dissolve_angle_limit = bpy.props.FloatProperty(
+		name="",
+		description="Decimate Dissolve angle limit",
+		default=math.radians(1),
+		min=0,
+		max=math.pi,
+		subtype="ANGLE"
+	)
+	prop_use_lod = bpy.props.BoolProperty(
+		name="Level of detail",
+		description="Use level of detail",
+		default=True
+	)
+	prop_lod_number = bpy.props.IntProperty(
+		name="",
+		description="Number of levels to be added",
+		default=3,
+		min=1,
+		max=8
+	)
+	prop_lod_factor = bpy.props.FloatProperty(
+		name="",
+		description="Additive Decimate Collapse factor",
+		default=0.5,
+		min=0,
+		max=1,
+		subtype="FACTOR"
+	)
+	prop_lod_use_distance = bpy.props.BoolProperty(
+		name="Distance",
+		description="Use custom distance",
+		default=False
+	)
+	prop_lod_distance = bpy.props.FloatProperty(
+		name="",
+		description="Additive distance of lod levels",
+		default=100,
+		soft_min=12.5,
+		soft_max=800,
+		subtype="DISTANCE"
+	)
+	prop_lod_use_physics = bpy.props.BoolProperty(
+		name="Physics",
+		description="Use physics",
+		default=True
+	)
+	prop_use_approx = bpy.props.BoolProperty(
+		name="Approximate",
+		description="Use approximation",
+		default=True
+	)
+	prop_approx_num_digits = bpy.props.IntProperty(
+		name="",
+		description="Maximum number of digits used with coordinates",
+		default=2,
+		min=0,
+		max=15
+	)
+	prop_use_custom_prefix = bpy.props.BoolProperty(
+		name="Prefix",
+		description="Use custom prefix",
+		default=False
+	)
+	prop_custom_prefix = bpy.props.StringProperty(
+		name="",
+		description="Custom prefix",
+		default=PREF
+	)
 	
 	err_msg = ""
 	log_msg = ""
@@ -76,9 +182,12 @@ class LODSections(bpy.types.Operator):
 			row().label(self.err_msg, icon="CANCEL")
 			return
 			
-		if PROP_NAME in self.object.game.properties:
+		if PROP in self.object.game.properties:
 			row().prop(self, "prop_update_or_clear")
 			return
+			
+		s = bpy.types.WM_MT_operator_presets
+		print(s)
 			
 		row().prop(self, "prop_number_or_size")
 		
@@ -95,31 +204,48 @@ class LODSections(bpy.types.Operator):
 			col_numb.active = False
 			
 		col = row().column
-		col().prop(self, "prop_decimate_dissolve")
+		col().prop(self, "prop_use_decimate_dissolve")
 		col_deci = col()
 		col_deci.prop(self, "prop_decimate_dissolve_angle_limit")
-		if not self.prop_decimate_dissolve:
+		if not self.prop_use_decimate_dissolve:
 			col_deci.active = False
 			
 		col = row().column
-		col().prop(self, "prop_lod")
+		col().prop(self, "prop_use_lod")
 		col_lod = col()
 		col_lod.prop(self, "prop_lod_number")
-		col_lod.prop(self, "prop_lod_factor")
-		if not self.prop_lod:
+
+		row_lod = row()
+		col = row_lod.column
+		col().prop(self, "prop_lod_use_physics", toggle=True)
+		col().prop(self, "prop_lod_factor")
+		
+		row_dist = row()
+		col = row_dist.column
+		col().prop(self, "prop_lod_use_distance", toggle=True)
+		col_dist = col()
+		col_dist.prop(self, "prop_lod_distance")
+		if not self.prop_lod_use_distance:
+			col_dist.active = False
+			
+		if not self.prop_use_lod:
 			col_lod.active = False
+			row_dist.active = False
+			row_lod.active = False
 			
 		col = row().column
-		col_appr = col()
-		col_appr.prop(self, "prop_approx")
+		col().prop(self, "prop_use_approx")
 		col_ndig = col()
 		col_ndig.prop(self, "prop_approx_num_digits")
-		
-		if self.prop_gen_options == "generate_sections":
-			col_appr.active = False
+		if not self.prop_use_approx:
 			col_ndig.active = False
-		elif not self.prop_approx:
-			col_ndig.active = False
+			
+		col = row().column
+		col().prop(self, "prop_use_custom_prefix")
+		col_pref = col()
+		col_pref.prop(self, "prop_custom_prefix")
+		if not self.prop_use_custom_prefix:
+			col_pref.active = False
 			
 	def check(self, context):
 		
@@ -132,34 +258,65 @@ class LODSections(bpy.types.Operator):
 		if self.err_msg:
 			return {"CANCELLED"}
 			
-		if PROP_NAME in self.object.game.properties:
+		self.prefix = self.prop_custom_prefix if self.prop_use_custom_prefix else PREF
+		
+		if PROP in self.object.game.properties:
+			sections_name = self.object.game.properties[PROP].value
 			
-			for i, prop in enumerate(self.object.game.properties):
-				if prop.name == PROP_NAME:
-					bpy.ops.object.game_property_remove(i)
-					
-			ut.remove_logic_python(self.object, SCRIPT_NAME)
-			ut.remove_text_internal(SCRIPT_NAME)
-			
-			for sect in self.object.children:
-				for sect_lod in sect.children:
-					ut.remove(sect_lod)
-				ut.remove(sect)
+			try:
+				sections = self.scene.objects[sections_name]
 				
-			self.object.hide_render = False
-			self.object.draw_type = "TEXTURED"
-			
-			if self.prop_update_or_clear == "clear":
-				return {"FINISHED"}
+				for i, prop in enumerate(self.object.game.properties):
+					if prop.name == PROP:
+						bpy.ops.object.game_property_remove(i)
+						
+				ut.remove_logic_python(self.object, SCRIPT)
+				ut.remove_text(SCRIPT)
+				
+				meshes = set()
+				for ob in sections.children:
+					meshes.add(ob.data)
+					ut.remove(ob, False)
+				materials = set()
+				for me in meshes:
+					for mat in me.materials:
+						if not mat.name.startswith(self.prefix):
+							continue
+						materials.add(mat)
+					ut.remove(me)
+				for mat in materials:
+					ut.remove(mat)
+				ut.remove(sections, False)
+				
+				if self.prop_update_or_clear == "clear":
+					
+					return {"FINISHED"}
+					
+			except KeyError:
+				self.err_msg = ERR_MSG_OBJECT_NOT_FOUND + ": " + sections_name
+				
+				return {"CANCELLED"}
 				
 		print("\nLOD Sections\n------------\n")
 		
-		def initialize():
+		def store_initial_state():
 			
 			bpy.ops.object.mode_set(mode="OBJECT")
+			
+			self.undo = context.user_preferences.edit.use_global_undo
+			context.user_preferences.edit.use_global_undo = False
+			
 			self.cursor_location = self.scene.cursor_location.copy()
+			self.scene.cursor_location = Vector()
+			
+			self.hide_render = self.object.hide_render
+			self.hide = self.object.hide
+			
+		def collect_data():
 			
 			self.prof = ut.Profiler()
+			
+			print(self.prof.timed("Collecting data"))
 			
 			self.number = Vector()
 			self.size = Vector()
@@ -199,14 +356,24 @@ class LODSections(bpy.types.Operator):
 					n += 1
 					
 			self.particles = {}
-			self.sections = {}
+			self.data = {}
 			
+			bpy.ops.object.empty_add()
+			self.sections = self.scene.objects.active
+			self.sections.name = self.prefix + self.object.name
+			self.sections.select = False
+			
+		def create_base():
+			
+			print(self.prof.timed("Creating base"))
+			
+			self.scene.objects.active = self.object
+			self.object.select = True
 			bpy.ops.object.duplicate()
 			self.object.select = False
 			
 			self.base = self.scene.objects.active
-			self.base.name = self.object.name + BASE_SUFFIX
-			self.base.data.name = self.object.data.name + BASE_SUFFIX
+			self.base.data.name = self.base.name = self.sections.name + BASE
 			
 			self.base.game.physics_type = "NO_COLLISION"
 			self.materials = set(self.base.data.materials)
@@ -221,6 +388,9 @@ class LODSections(bpy.types.Operator):
 				
 				bpy.ops.object.modifier_apply(apply_as="DATA", modifier=mod.name)
 				
+			for vertex_group in list(self.base.vertex_groups):
+				self.base.vertex_groups.remove(vertex_group)
+				
 			bpy.ops.object.parent_clear(type="CLEAR_KEEP_TRANSFORM")
 			bpy.ops.object.origin_set(type="ORIGIN_GEOMETRY")
 			self.transform = self.base.matrix_world.copy()
@@ -234,7 +404,7 @@ class LODSections(bpy.types.Operator):
 			
 		def dissolve():
 			
-			if not self.prop_decimate_dissolve:
+			if not self.prop_use_decimate_dissolve:
 				return
 				
 			print(self.prof.timed("Applying Decimate Dissolve"))
@@ -254,15 +424,15 @@ class LODSections(bpy.types.Operator):
 			
 			print(self.prof.timed("Multisecting base"))
 			
-			bpy.ops.object.duplicate()
+			self.scene.objects.active = tmps = ut.copy(self.scene, self.base)
+			tmps.select = True
 			self.base.select = False
 			
-			tmps = self.scene.objects.active
-			tmps.name = self.object.name + TEMP_SUFFIX + NUMB_SUFFIX
-			tmps.data.name = self.object.data.name + TEMP_SUFFIX + NUMB_SUFFIX
-			tmps.vertex_groups.new(VERTEX_GROUP)
+			tmps.data.name = tmps.name = self.sections.name + TEMP + NUMB
+			tmps.vertex_groups.new(BOUNDS)
 			tmps.show_all_edges = True
 			tmps.show_wire = True
+			tmps.game.physics_type = "NO_COLLISION"
 			
 			bpy.ops.object.editmode_toggle()
 			
@@ -322,11 +492,11 @@ class LODSections(bpy.types.Operator):
 				inside = False
 				for id, v in self.points.items():
 					if ut.point_inside_rectangle(tmp.location, (v, self.size * 0.99)):
-						tmp.name = self.object.name + SECT_SUFFIX + id
-						tmp.data.name = self.object.data.name + SECT_SUFFIX + id
+						tmp.data.name = tmp.name = self.sections.name + SECT + id
 						self.scene.cursor_location = v
 						bpy.ops.object.origin_set(type="ORIGIN_CURSOR")
-						self.sections[id] = tmp
+						self.data[id] = tmp
+						tmp.parent = self.sections
 						tmp.select = False
 						inside = True
 						break
@@ -334,34 +504,33 @@ class LODSections(bpy.types.Operator):
 				if not inside:
 					ut.remove(tmp)
 					
+			self.scene.cursor_location = Vector()
+			
 		def generate_lod():
 			
-			if not (self.prop_lod and self.prop_lod_number > 1):
+			if not self.prop_use_lod:
 				return
 				
-			lod_dist = round(math.pi * math.sqrt(self.size.x * self.size.y) * 0.5)
-			self.scene.cursor_location = zero_loc = Vector()
-			id = ut.get_id(0, "", self.ndigits) + ut.get_id(self.prop_lod_number - 1, ".", 1)
-			sect_lod_me_linked_name = self.object.data.name + SECT_SUFFIX + id
-			sect_lod_me_linked = bpy.data.meshes.new(sect_lod_me_linked_name)
+			lod = {id: [sect] for id, sect in self.data.items()}
+			id = ut.get_id(0, "", self.ndigits)
+			lod_id = ut.get_id(self.prop_lod_number, "_", 1)
+			me_name = self.sections.name + SECT + id + LOD + lod_id
+			sect_lod_me_linked = bpy.data.meshes.new(me_name)
 			
-			for i in range(self.prop_lod_number):
+			for i in range(1, self.prop_lod_number + 1):
 				
-				print(self.prof.timed("Generating LOD ", i + 1, " of ", self.prop_lod_number))
+				print(self.prof.timed("Generating LOD ", i, " of ", self.prop_lod_number))
 				
-				lod_id = ut.get_id(i, ".", 1)
+				lod_id = ut.get_id(i, "_", 1)
 				
-				for sect in self.sections.values():
-					sect_lod_name = sect.name + LOD_SUFFIX + lod_id
-					sect_lod_me_name = sect.data.name + LOD_SUFFIX + lod_id
+				for id, sect in self.data.items():
+					sect_lod_name = sect.name + LOD + lod_id
+					sect_lod_me_name = sect.data.name + LOD + lod_id
 					
-					if i == self.prop_lod_number - 1:
+					if i == self.prop_lod_number:
 						sect_lod = bpy.data.objects.new(sect_lod_name, sect_lod_me_linked)
+						sect_lod.game.physics_type = "NO_COLLISION"
 						self.scene.objects.link(sect_lod)
-						
-						sect_lod.draw_type = "BOUNDS"
-						sect_lod.hide_render = True
-						sect_lod.hide = True
 					else:
 						self.scene.objects.active = sect
 						sect.select = True
@@ -371,28 +540,40 @@ class LODSections(bpy.types.Operator):
 						sect_lod = self.scene.objects.active
 						sect_lod.name = sect_lod_name
 						sect_lod.data.name = sect_lod_me_name
-						sect_lod.location.xyz = zero_loc
 						
-					mod_decimate_collapse = sect_lod.modifiers.new("Decimate Collapse", "DECIMATE")
-					mod_decimate_collapse.decimate_type = "COLLAPSE"
-					mod_decimate_collapse.ratio = self.prop_lod_factor / (i + 1)
-					mod_decimate_collapse.vertex_group = VERTEX_GROUP
-					mod_decimate_collapse.invert_vertex_group = True
-					#mod_decimate_collapse.use_collapse_triangulate = True
-					bpy.ops.object.modifier_apply(apply_as="DATA", modifier="Decimate Collapse")
-					
-					sect_lod.parent = sect
+						mod_decimate_collapse = sect_lod.modifiers.new("Decimate Collapse", "DECIMATE")
+						mod_decimate_collapse.decimate_type = "COLLAPSE"
+						mod_decimate_collapse.ratio = self.prop_lod_factor / i
+						mod_decimate_collapse.vertex_group = BOUNDS
+						mod_decimate_collapse.invert_vertex_group = True
+						#mod_decimate_collapse.use_collapse_triangulate = True
+						bpy.ops.object.modifier_apply(apply_as="DATA", modifier="Decimate Collapse")
+						
+					sect_lod.location = sect.location
 					sect_lod.select = False
+					sect_lod.parent = self.sections
 					
-					self.scene.objects.active = sect
-					sect.select = True
+					lod[id].append(sect_lod)
+					
+			print(self.prof.timed("Configuring LOD"))
+			
+			if self.prop_lod_use_distance:
+				lod_dist = self.prop_lod_distance
+			else:
+				lod_dist = round(math.pi * math.sqrt(self.size.x * self.size.y) * 0.5)
+				
+			for id, l in lod.items():
+				sect = self.data[id]
+				self.scene.objects.active = sect
+				sect.select = True
+				for i, sect_lod in enumerate(l):
 					bpy.ops.object.lod_add()
-					lod_level = sect.lod_levels[len(sect.lod_levels) - 1]
-					lod_level.distance = lod_dist * (i + 1)
+					lod_level = sect.lod_levels[i + 1]
+					lod_level.distance = lod_dist * i
 					lod_level.use_material = True
 					lod_level.object = sect_lod
-					sect.select = False
-					
+				sect.select = False
+				
 		def convert_particles():
 			
 			particles = {}
@@ -435,11 +616,11 @@ class LODSections(bpy.types.Operator):
 							ut.remove(ob)
 							
 					bpy.ops.object.select_all(action="DESELECT")
-					mod.show_viewport = mod.show_render = False
+					mod.show_viewport = True
 					
 			for id, objects in particles.items():
 				self.particles[id] = p = objects[0]
-				p.data.name = p.name = self.object.name + PARTICLES + id
+				p.data.name = p.name = self.sections.name + PART + id
 				
 				if not objects:
 					continue
@@ -462,7 +643,7 @@ class LODSections(bpy.types.Operator):
 			if not self.particles:
 				return
 				
-			for id, sect in self.sections.items():
+			for id, sect in self.data.items():
 				
 				if id not in self.particles:
 					continue
@@ -470,29 +651,35 @@ class LODSections(bpy.types.Operator):
 				v = self.points[id]
 				part = self.particles[id]
 				part_me = part.data
-				for j, sect_lod in enumerate(sect.children[:-1]):
-					self.scene.objects.active = part
-					part.select = True
-					bpy.ops.object.duplicate()
-					part.select = False
-					part_lod = self.scene.objects.active
-					part_lod_me = part_lod.data
+				
+				if self.prop_use_lod:
 					
-					mod_decimate_collapse = part_lod.modifiers.new("Decimate Collapse", "DECIMATE")
-					mod_decimate_collapse.decimate_type = "COLLAPSE"
-					mod_decimate_collapse.ratio = self.prop_lod_factor / (j + 1)
-					mod_decimate_collapse.use_collapse_triangulate = True
-					bpy.ops.object.modifier_apply(apply_as="DATA", modifier="Decimate Collapse")
+					lod = [ll.object for ll in sect.lod_levels[2:-1]]
 					
-					self.scene.objects.active = sect_lod
-					sect_lod.select = True
-					bpy.ops.object.join()
-					self.scene.cursor_location = v
-					bpy.ops.object.origin_set(type="ORIGIN_CURSOR")
-					sect_lod.select = False
-					
-					ut.remove(part_lod_me)
-					
+					for i, sect_lod in enumerate(lod):
+						
+						self.scene.objects.active = part
+						part.select = True
+						bpy.ops.object.duplicate()
+						part.select = False
+						part_lod = self.scene.objects.active
+						part_lod_me = part_lod.data
+						
+						mod_decimate_collapse = part_lod.modifiers.new("Decimate Collapse", "DECIMATE")
+						mod_decimate_collapse.decimate_type = "COLLAPSE"
+						mod_decimate_collapse.ratio = self.prop_lod_factor / (i + 1)
+						mod_decimate_collapse.use_collapse_triangulate = True
+						bpy.ops.object.modifier_apply(apply_as="DATA", modifier="Decimate Collapse")
+						
+						self.scene.objects.active = sect_lod
+						sect_lod.select = True
+						bpy.ops.object.join()
+						self.scene.cursor_location = v
+						bpy.ops.object.origin_set(type="ORIGIN_CURSOR")
+						sect_lod.select = False
+						
+						ut.remove(part_lod_me)
+						
 				self.scene.objects.active = sect
 				sect.select = True
 				part.select = True
@@ -506,10 +693,12 @@ class LODSections(bpy.types.Operator):
 		def copy_normals():
 			
 			objects = []
-			for sect in self.sections.values():
+			for sect in self.data.values():
 				objects.append(sect)
-				for sect_lod in sect.children[:-1]:
-					objects.append(sect_lod)
+				if not self.prop_use_lod:
+					continue
+				for lod_level in sect.lod_levels[2:-1]:
+					objects.append(lod_level.object)
 					
 			for ob in objects:
 				self.scene.objects.active = ob
@@ -522,7 +711,7 @@ class LODSections(bpy.types.Operator):
 				mod_copy_cust_norm.object = self.base
 				mod_copy_cust_norm.use_loop_data = True
 				mod_copy_cust_norm.data_types_loops = {"CUSTOM_NORMAL"}
-				mod_copy_cust_norm.vertex_group = VERTEX_GROUP
+				mod_copy_cust_norm.vertex_group = BOUNDS
 				
 				bpy.ops.object.modifier_apply(apply_as="DATA", modifier="Copy Custom Normals")
 				
@@ -530,15 +719,18 @@ class LODSections(bpy.types.Operator):
 				
 			ut.remove(self.base)
 			
-		def finalize():
+		def generate_lod_materials():
 			
-			print(self.prof.timed("Finalizing sections"))
+			if not self.prop_use_lod:
+				return
+				
+			print(self.prof.timed("Generating lod materials"))
 			
 			materials_lod = {}
 			
 			for mat in self.materials:
 				mat_lod = mat.copy()
-				mat_lod.name = mat.name + LOD_SUFFIX
+				mat_lod.name = self.prefix + mat.name
 				materials_lod[mat.name] = mat_lod
 				
 				mat_lod.game_settings.physics = False
@@ -549,27 +741,29 @@ class LODSections(bpy.types.Operator):
 				mat.use_cast_shadows = True
 				mat.use_shadows = True
 				
-			for sect in self.sections.values():
-				for sect_lod in sect.children:
+			for sect in self.data.values():
+				for lod_level in sect.lod_levels[2:-1]:
+					sect_lod = lod_level.object
 					for i, mat in enumerate(sect_lod.data.materials):
 						sect_lod.active_material_index = i
 						sect_lod.active_material = materials_lod[mat.name]
-				sect.parent = self.object
-				
+						
 		def export_normals():
 			
 			print(self.prof.timed("Exporting custom normals"))
 			
-			approx_ndigits = self.prop_approx_num_digits if self.prop_approx else -1
+			objects = []
+			for sect in self.data.values():
+				objects.append(sect)
+				if not self.prop_use_lod:
+					continue
+				for lod_level in sect.lod_levels[2:-1]:
+					objects.append(lod_level.object)
+					
+			approx_ndigits = self.prop_approx_num_digits if self.prop_use_approx else -1
 			
 			custom_normals = {}
 			
-			objects = []
-			for sect in self.sections.values():
-				objects.append(sect)
-				for sect_lod in sect.children[:-1]:
-					objects.append(sect_lod)
-					
 			for ob in objects:
 				self.scene.objects.active = ob
 				ob.select = True
@@ -585,59 +779,95 @@ class LODSections(bpy.types.Operator):
 				bpy.ops.mesh.select_all(action="DESELECT")
 				bpy.ops.object.editmode_toggle()
 				
-				ob.vertex_groups.remove(ob.vertex_groups.get(VERTEX_GROUP))
+				ob.vertex_groups.remove(ob.vertex_groups.get(BOUNDS))
 				
 				ob.select = False
+					
+			ut.save_txt(custom_normals, PROP, self.object.name)
+			
+		def generate_physics():
+			
+			if not (self.prop_use_lod and self.prop_lod_use_physics):
+				return
 				
-			ut.save_txt(custom_normals, PROP_NAME, self.object.name)
+			print(self.prof.timed("Generating Physics"))
+			
+			for sect in self.data.values():
+				sect_physics = ut.copy(self.scene, sect, True)
+				sect_physics.name = sect.name + PHYS
+				
+				sect_physics.game.physics_type = "STATIC"
+				sect_physics.game.use_collision_bounds = True
+				sect_physics.game.collision_bounds_type = "TRIANGLE_MESH"
+				sect_physics.select = False
+				
+				sect_physics.parent = self.sections
+				
+		def finalize():
+			
+			print(self.prof.timed("Finalizing sections"))
+			
+			layer_twenty = [False for i in range(19)] + [True]
+			
+			sections = self.data.values()
+			for ob in self.sections.children:
+				ob.layers = layer_twenty
+				if ob not in sections:
+					ob.hide_render = True
+					ob.hide = True
+					
+			self.sections.layers = layer_twenty
+			self.sections.hide_render = True
+			self.sections.hide = True
+			
+		def generate_game_logic():
+			
+			print(self.prof.timed("Generating game logic"))
+			
+			self.scene.objects.active = self.object
+			self.object.select = True
+			
+			if PROP not in self.object:
+				bpy.ops.object.game_property_new(type="STRING", name=PROP)
+			else:
+				self.object[PROP].type = "STRING"
+			self.object.game.properties[PROP].value = self.sections.name
+			
+			ut.add_text(self.bl_idname, True, SCRIPT)
+			ut.add_logic_python(self.object, SCRIPT, "update", True)
 			
 		def restore_initial_state():
 			
 			print(self.prof.timed("Restoring initial state"))
 			
-			for sect in self.sections.values():
-				
-				for sect_lod in sect.children:
-					sect_lod.hide_render = True
-					sect_lod.hide = True
-					
+			self.object.hide_render = self.hide_render
+			self.object.hide = self.hide
+			
 			self.scene.cursor_location = self.cursor_location
-			self.scene.objects.active = self.object
-			self.object.select = True
-			self.object.hide = False
-			self.object.hide_render = True
-			self.object.draw_type = "BOUNDS"
-						
-		def generate_game_logic():
 			
-			print(self.prof.timed("Generating game logic"))
-			
-			if PROP_NAME not in self.object:
-				bpy.ops.object.game_property_new(type="BOOL", name=PROP_NAME)
-			else:
-				self.object[PROP_NAME].type = "BOOL"
-			self.object.game.properties[PROP_NAME].value = True
-			
-			ut.add_text(self.bl_idname, True, SCRIPT_NAME)
-			ut.add_logic_python(self.object, SCRIPT_NAME, "update", True)
+			context.user_preferences.edit.use_global_undo = self.undo
 			
 		def log():
 			
-			self.log_msg = self.prof.timed("Finished generating ", len(self.sections), " (", round(self.size.x, 1), " X ", round(self.size.y, 1), ") sections in")
+			self.log_msg = self.prof.timed("Finished generating ", len(self.data), " (", round(self.size.x, 1), " X ", round(self.size.y, 1), ") sections in")
 			
 			print(self.log_msg)
 			
-		initialize()
+		store_initial_state()
+		collect_data()
+		create_base()
 		dissolve()
 		generate_sections()
 		generate_lod()
 		convert_particles()
 		join_particles()
 		copy_normals()
-		finalize()
+		generate_lod_materials()
 		export_normals()
-		restore_initial_state()
+		generate_physics()
+		finalize()
 		generate_game_logic()
+		restore_initial_state()
 		log()
 		
 		return {"FINISHED"}
